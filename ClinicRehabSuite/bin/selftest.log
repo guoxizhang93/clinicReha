@@ -1,0 +1,14 @@
+﻿PASS
+native-core-ok
+record-ok
+can-frame-ok
+native-motor-frames-ok
+device-simulation-ok
+training-state-machine-ok
+native-clinical-workflow-ok
+opensignal-svm-ok
+stretch-feedback-ok
+motor-state-decode-ok
+kinematics-ok
+libsvm-train-predict-ok
+native-detector-ok
