@@ -333,6 +333,213 @@ CLINIC_API int clinic_motor_impedance_frame(int id, double kp, double kd, unsign
     return clinic_can_build_command(id, 0x08, payload, 8, 0, out_frame16);
 }
 
+CLINIC_API int clinic_motor_set_angle_frame(int id, double angle, double speed_or_time, double param, int mode, unsigned char* out_frame16) {
+    unsigned char payload[8];
+    int command = 0x19;
+    const double factor = 0.01;
+    double p = param;
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_f32(payload, (float)angle);
+    if (mode == 1) {
+        if (speed_or_time <= 0.0 || param <= 0.0) return 0;
+        command = 0x1A;
+        write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(fabs(speed_or_time), factor));
+        write_i16(payload + 6, (int16_t)clamp_i16_from_scaled(fabs(param), factor));
+    } else if (mode == 2) {
+        command = 0x1B;
+        write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(speed_or_time, factor));
+        write_i16(payload + 6, (int16_t)clamp_i16_from_scaled(param, factor));
+    } else {
+        if (p < 0.0) p = -p;
+        if (p > 300.0) p = 300.0;
+        write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(fabs(speed_or_time), factor));
+        write_i16(payload + 6, (int16_t)clamp_i16_from_scaled(p, factor));
+    }
+    return clinic_can_build_command(id, command, payload, 8, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_step_execute_frame(int id, int mode, int multi_axis, unsigned char* out_frame16) {
+    unsigned char payload[6];
+    uint32_t order = 0x10U;
+    uint16_t relative_mode = 1U;
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    if (mode == 1) {
+        order = 0x11U;
+        relative_mode = 2U;
+    } else if (mode == 2) {
+        order = 0x12U;
+        relative_mode = 1U;
+    }
+    write_u32(payload, order);
+    write_u16(payload + 4, relative_mode);
+    return clinic_can_build_command(multi_axis ? 0 : id, 0x08, payload, 6, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_preset_speed_frame(int id, double speed, double param, int mode, unsigned char* out_frame16) {
+    unsigned char payload[8];
+    const double factor = 0.01;
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_f32(payload, (float)speed);
+    if (mode == 0) {
+        write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(speed == 0.0 ? 0.0 : param, factor));
+        write_i16(payload + 6, (int16_t)clamp_i16_from_scaled(1.0, factor));
+    } else {
+        write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(param, factor));
+        write_i16(payload + 6, (int16_t)clamp_i16_from_scaled(2.0, factor));
+    }
+    return clinic_can_build_command(id, 0x0C, payload, 8, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_preset_torque_frame(int id, double torque, double param, int mode, unsigned char* out_frame16) {
+    unsigned char payload[8];
+    const double factor = 0.01;
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_f32(payload, (float)torque);
+    if (mode == 0) {
+        write_i16(payload + 4, 0);
+        write_i16(payload + 6, (int16_t)clamp_i16_from_scaled(1.0, factor));
+    } else {
+        write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(param, factor));
+        write_i16(payload + 6, (int16_t)clamp_i16_from_scaled(6.0, factor));
+    }
+    return clinic_can_build_command(id, 0x0C, payload, 8, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_motion_aid_frame(int id, double angle, double angle_error, double speed_error, double torque, unsigned char* out_frame16) {
+    unsigned char payload[8];
+    const double factor = 0.01;
+    if (!out_frame16 || angle < -300.0 || angle > 300.0) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_i16(payload, (int16_t)clamp_i16_from_scaled(angle, factor));
+    write_u16(payload + 2, (uint16_t)clamp_i16_from_scaled(fabs(angle_error), factor));
+    write_u16(payload + 4, (uint16_t)clamp_i16_from_scaled(fabs(speed_error), factor));
+    write_i16(payload + 6, (int16_t)clamp_i16_from_scaled(torque, factor));
+    return clinic_can_build_command(id, 0x0D, payload, 8, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_read_property_frame(int id, int address, int data_type, unsigned char* out_frame16) {
+    unsigned char payload[4];
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_u16(payload, (uint16_t)address);
+    write_u16(payload + 2, (uint16_t)data_type);
+    return clinic_can_build_command(id, 0x1E, payload, 4, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_adaptive_angle_frame(int id, double angle, double speed, double torque, unsigned char* out_frame16) {
+    unsigned char payload[8];
+    const double factor = 0.01;
+    if (!out_frame16 || speed < 0.0 || torque < 0.0) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_f32(payload, (float)angle);
+    write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(fabs(speed), factor));
+    write_i16(payload + 6, (int16_t)clamp_i16_from_scaled(fabs(torque), factor));
+    return clinic_can_build_command(id, 0x0B, payload, 8, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_adaptive_multi_execute_frame(unsigned char* out_frame16) {
+    unsigned char payload[6];
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_u32(payload, 0x11U);
+    write_u16(payload + 4, 3U);
+    return clinic_can_build_command(0, 0x08, payload, 6, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_set_speed_frame(int id, double speed, double param, int mode, unsigned char* out_frame16) {
+    unsigned char payload[8];
+    const double factor = 0.01;
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_f32(payload, (float)speed);
+    if (mode == 0) {
+        write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(speed == 0.0 ? 0.0 : param, factor));
+        write_u16(payload + 6, 1U);
+    } else {
+        write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(param, factor));
+        write_u16(payload + 6, 2U);
+    }
+    return clinic_can_build_command(id, 0x1C, payload, 8, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_set_torque_frame(int id, double torque, double param, int mode, unsigned char* out_frame16) {
+    unsigned char payload[8];
+    const double factor = 0.01;
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_f32(payload, (float)torque);
+    if (mode == 0) {
+        write_i16(payload + 4, 0);
+        write_u16(payload + 6, 1U);
+    } else {
+        write_i16(payload + 4, (int16_t)clamp_i16_from_scaled(param, factor));
+        write_u16(payload + 6, 6U);
+    }
+    return clinic_can_build_command(id, 0x1D, payload, 8, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_pid_property_frames(int id, double p, double i, double d, unsigned char* out_frame16_array48) {
+    unsigned char payload[8];
+    if (!out_frame16_array48 || p <= 0.0 || i <= 0.0 || d < 0.0) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_u16(payload, 32102U);
+    write_u16(payload + 2, 0U);
+    write_f32(payload + 4, (float)p);
+    if (clinic_can_build_command(id, 0x1F, payload, 8, 0, out_frame16_array48) != 16) return 0;
+    write_u16(payload, 32103U);
+    write_f32(payload + 4, (float)d);
+    if (clinic_can_build_command(id, 0x1F, payload, 8, 0, out_frame16_array48 + 16) != 16) return 0;
+    write_u16(payload, 32104U);
+    write_f32(payload + 4, (float)i);
+    if (clinic_can_build_command(id, 0x1F, payload, 8, 0, out_frame16_array48 + 32) != 16) return 0;
+    return 48;
+}
+
+CLINIC_API int clinic_motor_angle_range_frames(int id, double angle_min, double angle_max, int persistent, int enable, unsigned char* out_frame16_array48) {
+    int base_min = persistent ? 31202 : 38004;
+    int base_max = persistent ? 31203 : 38005;
+    int base_enable = persistent ? 31201 : 38006;
+    unsigned char payload[8];
+    if (!out_frame16_array48) return 0;
+    if (!enable) {
+        if (clinic_motor_property_frame(id, base_enable, 3, 0, out_frame16_array48) != 16) return 0;
+        memset(out_frame16_array48 + 16, 0, 32);
+        return 16;
+    }
+    if (angle_min > angle_max) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_u16(payload, (uint16_t)base_min);
+    write_u16(payload + 2, 0U);
+    write_f32(payload + 4, (float)angle_min);
+    if (clinic_can_build_command(id, 0x1F, payload, 8, 0, out_frame16_array48) != 16) return 0;
+    write_u16(payload, (uint16_t)base_max);
+    write_f32(payload + 4, (float)angle_max);
+    if (clinic_can_build_command(id, 0x1F, payload, 8, 0, out_frame16_array48 + 16) != 16) return 0;
+    if (clinic_motor_property_frame(id, base_enable, 3, 1, out_frame16_array48 + 32) != 16) return 0;
+    return 48;
+}
+
+CLINIC_API int clinic_motor_config_order_frame(int id, unsigned int order, unsigned char* out_frame16) {
+    unsigned char payload[4];
+    if (order != 0x01U && order != 0x03U && order != 0x05U && order != 0x23U) return 0;
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_u32(payload, order);
+    return clinic_can_build_command(id, 0x08, payload, 4, 0, out_frame16);
+}
+
+CLINIC_API int clinic_motor_init_config_frame(int id, unsigned char* out_frame16) {
+    unsigned char payload[4];
+    if (!out_frame16) return 0;
+    memset(payload, 0, sizeof(payload));
+    write_u32(payload, (uint32_t)id);
+    return clinic_can_build_command(id, 0x0E, payload, 4, 0, out_frame16);
+}
+
 CLINIC_API double clinic_kinematics_linkage_to_motor(double linkage_angle) {
     int best = 0;
     int i;

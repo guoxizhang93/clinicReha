@@ -34,10 +34,8 @@ namespace ClinicRehabSuite
         private readonly DeviceController deviceController;
         private readonly SessionRecorder recorder;
         private readonly Timer telemetryTimer;
-        private readonly List<Button> navigationButtons = new List<Button>();
         private readonly List<TelemetrySample> telemetry = new List<TelemetrySample>();
 
-        private Panel sidebar;
         private Panel header;
         private Panel content;
         private Label titleLabel;
@@ -47,16 +45,23 @@ namespace ClinicRehabSuite
         private Label alertLabel;
         private ComboBox motorPortBox;
         private ComboBox stretchPortBox;
-        private ComboBox deviceModeBox;
         private ComboBox trainModeBox;
+        private ComboBox speedLevelBox;
+        private ComboBox againstPowerBox;
         private NumericUpDown startAngleBox;
         private NumericUpDown endAngleBox;
         private NumericUpDown repeatBox;
         private NumericUpDown keepTimeBox;
         private NumericUpDown restTimeBox;
         private NumericUpDown tractionForceBox;
+        private NumericUpDown tractionTimeBox;
         private NumericUpDown measuredAngleBox;
         private ProgressBar progressBar;
+        private Label angleMetricLabel;
+        private Label pressureMetricLabel;
+        private Label svmMetricLabel;
+        private Label machineMaxLabel;
+        private Label stretchStateLabel;
         private WavePanel motorWave;
         private WavePanel emgWave;
         private WavePanel pressureWave;
@@ -68,15 +73,26 @@ namespace ClinicRehabSuite
         private TrainingPrescription activePrescription;
         private TrainingSession activeSession;
         private readonly SvmPainDetector painDetector = new SvmPainDetector();
+        private static readonly Color AppBackground = Color.FromArgb(242, 246, 249);
+        private static readonly Color SurfaceColor = Color.White;
+        private static readonly Color BorderColor = Color.FromArgb(214, 221, 230);
+        private static readonly Color TextColor = Color.FromArgb(25, 33, 46);
+        private static readonly Color MutedTextColor = Color.FromArgb(91, 103, 120);
+        private static readonly Color PrimaryColor = Color.FromArgb(12, 111, 133);
+        private static readonly Color PrimaryHoverColor = Color.FromArgb(8, 91, 112);
+        private static readonly Color SecondaryColor = Color.FromArgb(67, 81, 101);
+        private static readonly Color DangerColor = Color.FromArgb(176, 42, 55);
+        private static readonly Color DangerHoverColor = Color.FromArgb(143, 31, 43);
 
         public MainForm()
         {
             Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point);
             Text = "Clinic Rehab Suite";
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(1200, 760);
-            Size = new Size(1360, 820);
-            BackColor = Color.FromArgb(245, 247, 250);
+            MinimumSize = new Size(1514, 820);
+            Size = new Size(1680, 940);
+            WindowState = FormWindowState.Maximized;
+            BackColor = AppBackground;
 
             deviceController = new DeviceController();
             recorder = new SessionRecorder(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Records"));
@@ -91,69 +107,23 @@ namespace ClinicRehabSuite
 
         private void BuildShell()
         {
-            sidebar = new Panel { Dock = DockStyle.Left, Width = 230, BackColor = Color.FromArgb(26, 35, 50) };
-            header = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.White };
-            content = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24), BackColor = Color.FromArgb(245, 247, 250) };
+            header = new Panel { Dock = DockStyle.Top, Height = 76, BackColor = SurfaceColor };
+            content = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12), BackColor = AppBackground };
 
             Controls.Add(content);
             Controls.Add(header);
-            Controls.Add(sidebar);
             FormClosed += delegate
             {
                 painDetector.Dispose();
                 deviceController.Dispose();
             };
 
-            var brand = new Label
-            {
-                Text = "Clinic Rehab",
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI Semibold", 18F, FontStyle.Bold),
-                Location = new Point(22, 22),
-                AutoSize = true
-            };
-            sidebar.Controls.Add(brand);
-
-            var nav = new[]
-            {
-                new NavItem("Dashboard", "总览"),
-                new NavItem("Patient", "患者"),
-                new NavItem("Device", "设备"),
-                new NavItem("Calibration", "标定"),
-                new NavItem("Prescription", "训练处方"),
-                new NavItem("Monitoring", "实时监测"),
-                new NavItem("Stretch", "牵伸/气囊"),
-                new NavItem("Records", "记录")
-            };
-            var y = 90;
-            foreach (var item in nav)
-            {
-                var button = new Button
-                {
-                    Text = item.Text,
-                    Tag = item.Key,
-                    FlatStyle = FlatStyle.Flat,
-                    ForeColor = Color.FromArgb(221, 226, 234),
-                    BackColor = Color.FromArgb(26, 35, 50),
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Width = 188,
-                    Height = 42,
-                    Location = new Point(22, y),
-                    Padding = new Padding(16, 0, 0, 0)
-                };
-                button.FlatAppearance.BorderSize = 0;
-                button.Click += NavigationClick;
-                navigationButtons.Add(button);
-                sidebar.Controls.Add(button);
-                y += 50;
-            }
-
             titleLabel = new Label
             {
-                Text = "总览",
+                Text = "Clinic Rehab Suite",
                 Font = new Font("Segoe UI Semibold", 18F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(31, 41, 55),
-                Location = new Point(24, 19),
+                ForeColor = TextColor,
+                Location = new Point(24, 18),
                 AutoSize = true
             };
             header.Controls.Add(titleLabel);
@@ -161,22 +131,23 @@ namespace ClinicRehabSuite
             connectionLabel = new Label
             {
                 Text = "设备：未连接",
-                ForeColor = Color.FromArgb(75, 85, 99),
+                ForeColor = MutedTextColor,
                 AutoSize = true,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(700, 26)
+                Location = new Point(700, 28)
             };
             header.Controls.Add(connectionLabel);
 
             statusLabel = new Label
             {
                 Text = "就绪",
-                ForeColor = Color.FromArgb(22, 101, 52),
+                ForeColor = Color.FromArgb(18, 122, 76),
                 AutoSize = true,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(930, 26)
+                Location = new Point(930, 28)
             };
             header.Controls.Add(statusLabel);
+            header.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = BorderColor });
 
             Resize += delegate { LayoutHeaderStatus(); };
             LayoutHeaderStatus();
@@ -185,8 +156,8 @@ namespace ClinicRehabSuite
         private void LayoutHeaderStatus()
         {
             if (connectionLabel == null || statusLabel == null) return;
-            statusLabel.Location = new Point(Math.Max(560, header.Width - 180), 26);
-            connectionLabel.Location = new Point(Math.Max(360, header.Width - 430), 26);
+            statusLabel.Location = new Point(Math.Max(560, header.Width - 180), 28);
+            connectionLabel.Location = new Point(Math.Max(360, header.Width - 430), 28);
         }
 
         private void NavigationClick(object sender, EventArgs e)
@@ -209,42 +180,274 @@ namespace ClinicRehabSuite
             currentPage = pageKey;
             titleLabel.Text = title;
             content.Controls.Clear();
-            foreach (var button in navigationButtons)
-            {
-                var active = (string)button.Tag == pageKey;
-                button.BackColor = active ? Color.FromArgb(51, 65, 85) : Color.FromArgb(26, 35, 50);
-                button.ForeColor = active ? Color.White : Color.FromArgb(221, 226, 234);
-            }
         }
 
         private void ShowDashboard()
         {
-            SetPage("Dashboard", "总览");
-            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 4 };
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
-            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
-            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
-            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 35));
-            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
+            SetPage("Dashboard", "康复训练控制台");
+            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 46));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32));
+            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             content.Controls.Add(grid);
 
-            grid.Controls.Add(MetricCard("关节角度", "0 deg", "双电机平均角度"), 0, 0);
-            grid.Controls.Add(MetricCard("牵伸压力", "0 N", "8 路压力合计"), 1, 0);
-            grid.Controls.Add(MetricCard("SVM 风险", "待采集", "肌电疼痛识别输出"), 2, 0);
+            grid.Controls.Add(BuildMatlabControlColumn(), 0, 0);
+            grid.Controls.Add(BuildMotorDataPanel(), 1, 0);
+            grid.Controls.Add(BuildSignalTabs(), 2, 0);
+        }
 
-            motorWave = new WavePanel { Dock = DockStyle.Fill, Title = "电机角度 / 速度 / 电流" };
-            emgWave = new WavePanel { Dock = DockStyle.Fill, Title = "肌电通道与触发信号" };
-            pressureWave = new WavePanel { Dock = DockStyle.Fill, Title = "推杆位置与压力" };
-            grid.Controls.Add(WrapPanel(motorWave), 0, 1);
-            grid.SetColumnSpan(grid.GetControlFromPosition(0, 1), 2);
-            grid.Controls.Add(WrapPanel(emgWave), 2, 1);
-            grid.Controls.Add(WrapPanel(pressureWave), 0, 2);
-            grid.SetColumnSpan(grid.GetControlFromPosition(0, 2), 2);
-            grid.Controls.Add(OperationPanel(), 2, 2);
-            grid.Controls.Add(AlertPanel(), 0, 3);
-            grid.SetColumnSpan(grid.GetControlFromPosition(0, 3), 3);
+        private Control BuildMatlabControlColumn()
+        {
+            var panel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
+            panel.RowStyles.Add(new RowStyle(SizeType.Percent, 82));
+            panel.RowStyles.Add(new RowStyle(SizeType.Percent, 18));
+            panel.Controls.Add(BuildControlTabs(), 0, 0);
+            panel.Controls.Add(BuildBottomStatusPanel(), 0, 1);
+            return panel;
+        }
+
+        private Control BuildControlTabs()
+        {
+            var tabs = new TabControl { Dock = DockStyle.Fill };
+            tabs.TabPages.Add(TabPageWith("设备控制", BuildDeviceControlPage()));
+            tabs.TabPages.Add(TabPageWith("OpenSignal", BuildOpenSignalPage()));
+            tabs.TabPages.Add(TabPageWith("推杆控制", BuildStretchControlPage()));
+            return tabs;
+        }
+
+        private Control BuildDeviceControlPage()
+        {
+            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, ColumnCount = 4, RowCount = 14, Padding = new Padding(10) };
+            for (int i = 0; i < 4; i++) layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            for (int i = 0; i < 14; i++) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, i == 0 || i == 4 || i == 8 ? 34 : 48));
+
+            layout.Controls.Add(SectionTitle("设备操作"), 0, 0);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 0), 4);
+            motorPortBox = Combo("COM4", SerialPort.GetPortNames().Concat(new[] { "COM4" }).Distinct().ToArray());
+            stretchPortBox = Combo("COM10", SerialPort.GetPortNames().Concat(new[] { "COM10" }).Distinct().ToArray());
+            layout.Controls.Add(FieldBlock("大然电机 CAN", motorPortBox), 0, 1);
+            layout.Controls.Add(FieldBlock("推杆/气囊 Arduino", stretchPortBox), 1, 1);
+            layout.Controls.Add(FieldBlock("OpenSignal TCP", LabelValue("127.0.0.1:5555")), 2, 1);
+            layout.Controls.Add(ActionButton("启动设备", ConnectDevices), 0, 2);
+            layout.Controls.Add(ActionButton("关闭设备", DisconnectDevices), 1, 2);
+            layout.Controls.Add(ActionButton("设备自检", DeviceSelfTest), 2, 2);
+            layout.Controls.Add(ActionButton("结束/急停", EmergencyStop), 3, 2);
+
+            layout.Controls.Add(SectionTitle("标定"), 0, 4);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 4), 4);
+            measuredAngleBox = Numeric(75, 5, 120);
+            machineMaxLabel = LabelValue("最大角度：未测量");
+            layout.Controls.Add(FieldBlock("起始标定角", Numeric(30, 5, 120)), 0, 5);
+            layout.Controls.Add(FieldBlock("医生量角结果", measuredAngleBox), 1, 5);
+            layout.Controls.Add(FieldBlock("设备活动范围", machineMaxLabel), 2, 5);
+            layout.SetColumnSpan(layout.GetControlFromPosition(2, 5), 2);
+            layout.Controls.Add(ActionButton("训练前最大角", MeasurePreAngle), 0, 6);
+            layout.Controls.Add(ActionButton("三分疼痛角", CalibratePainAngle), 1, 6);
+            layout.Controls.Add(ActionButton("训练后最大角", MeasurePostAngle), 2, 6);
+            layout.Controls.Add(ActionButton("生成 SVM 模型", TrainDetectorFromCalibration), 3, 6);
+
+            layout.Controls.Add(SectionTitle("康复训练"), 0, 8);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 8), 4);
+            trainModeBox = Combo("被动训练", new[] { "被动训练", "对抗训练", "自适应被动训练", "自适应对抗训练", "静态牵引", "自适应充气" });
+            speedLevelBox = Combo("适中", new[] { "缓慢", "适中", "快速" });
+            againstPowerBox = Combo("适中", new[] { "较小", "适中", "较大" });
+            startAngleBox = Numeric(30, 0, 120);
+            endAngleBox = Numeric(60, 5, 120);
+            repeatBox = Numeric(1, 1, 30);
+            keepTimeBox = Numeric(10, 1, 60);
+            restTimeBox = Numeric(10, 1, 60);
+            tractionForceBox = Numeric(10, 1, 50);
+            tractionTimeBox = Numeric(10, 1, 60);
+
+            layout.Controls.Add(FieldBlock("训练模式", trainModeBox), 0, 9);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 9), 2);
+            layout.Controls.Add(FieldBlock("速度", speedLevelBox), 2, 9);
+            layout.Controls.Add(FieldBlock("对抗力量", againstPowerBox), 3, 9);
+            layout.Controls.Add(FieldBlock("次数", repeatBox), 0, 10);
+            layout.Controls.Add(FieldBlock("起始角度", startAngleBox), 1, 10);
+            layout.Controls.Add(FieldBlock("终止角度", endAngleBox), 2, 10);
+            layout.Controls.Add(FieldBlock("保持/对抗时间", keepTimeBox), 3, 10);
+            layout.Controls.Add(FieldBlock("休息时间", restTimeBox), 0, 11);
+            layout.Controls.Add(FieldBlock("牵引力", tractionForceBox), 1, 11);
+            layout.Controls.Add(FieldBlock("牵引时间", tractionTimeBox), 2, 11);
+            progressBar = new ProgressBar { Dock = DockStyle.Fill, Minimum = 0, Maximum = 100 };
+            layout.Controls.Add(FieldBlock("训练进度", progressBar), 3, 11);
+            layout.Controls.Add(ActionButton("开始训练", StartTraining), 0, 12);
+            layout.Controls.Add(ActionButton("应用处方", ApplyPrescription), 1, 12);
+            layout.Controls.Add(ActionButton("导出记录", ExportRecord), 2, 12);
+            layout.Controls.Add(ActionButton("停止", EmergencyStop), 3, 12);
+            return layout;
+        }
+
+        private Control BuildOpenSignalPage()
+        {
+            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 8, Padding = new Padding(12) };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 32));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 32));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 36));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 1));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 1));
+            layout.Controls.Add(SectionTitle("OpenSignal 操作"), 0, 0);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 0), 3);
+
+            var idLabel = LabelValue("设备 ID：未读取");
+            layout.Controls.Add(ActionButton("devices", delegate { SendOpenSignalCommand("devices", idLabel, null, null); }), 0, 1);
+            layout.Controls.Add(ActionButton("config", delegate { SendOpenSignalCommand("config", idLabel, null, null); }), 1, 1);
+            layout.Controls.Add(ActionButton("start", delegate { SendOpenSignalCommand("start", idLabel, null, null); }), 2, 1);
+            layout.Controls.Add(ActionButton("stop", delegate { SendOpenSignalCommand("stop", idLabel, null, null); }), 0, 2);
+            layout.Controls.Add(idLabel, 1, 2);
+            layout.SetColumnSpan(idLabel, 2);
+
+            var sendBox = MultilineBox();
+            var receiveBox = MultilineBox();
+            var configBox = MultilineBox();
+            layout.Controls.Add(FieldBlock("发送", sendBox), 0, 3);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 3), 3);
+            layout.Controls.Add(FieldBlock("接收", receiveBox), 0, 4);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 4), 3);
+            layout.Controls.Add(FieldBlock("配置", configBox), 0, 5);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 5), 3);
+
+            foreach (Control button in layout.Controls)
+            {
+                if (button is Button)
+                {
+                    button.Click += delegate
+                    {
+                        sendBox.Text = statusLabel.Text;
+                        receiveBox.Text = deviceController.LastMessage ?? "";
+                        var config = OpenSignalParser.ParseConfig(deviceController.LastOpenSignalResponse);
+                        if (config != null)
+                        {
+                            idLabel.Text = "设备 ID：" + config.DeviceId;
+                            configBox.Text = "activeChannels: " + string.Join(",", config.ActiveChannels.Select(x => x.ToString(CultureInfo.InvariantCulture)).ToArray()) + Environment.NewLine +
+                                "samplingFreq: " + config.SamplingFrequency.ToString(CultureInfo.InvariantCulture);
+                        }
+                    };
+                }
+            }
+            return layout;
+        }
+
+        private Control BuildStretchControlPage()
+        {
+            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, ColumnCount = 4, RowCount = 8, Padding = new Padding(12) };
+            for (int i = 0; i < 4; i++) layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            for (int i = 0; i < 8; i++) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, i == 0 || i == 3 || i == 5 ? 38 : 50));
+            layout.Controls.Add(SectionTitle("推杆"), 0, 0);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 0), 4);
+            layout.Controls.Add(ActionButton("推杆归零", delegate { SendStretch("1", "推杆归零"); }), 0, 1);
+            layout.Controls.Add(ActionButton("一次拉伸", delegate { SendStretch("2", "一次拉伸"); }), 1, 1);
+            layout.Controls.Add(ActionButton("推杆伸出", delegate { SendStretch("3", "推杆伸出"); }), 2, 1);
+            layout.Controls.Add(ActionButton("推杆回缩", delegate { SendStretch("4", "推杆回缩"); }), 3, 1);
+            layout.Controls.Add(ActionButton("开启反馈", delegate { SendStretch("o", "开启反馈"); }), 0, 2);
+            layout.Controls.Add(ActionButton("停止反馈", delegate { SendStretch("c", "停止反馈"); }), 1, 2);
+            layout.Controls.Add(ActionButton("静态牵引", delegate { RunStretchTraining(TrainingMode.StaticTraction); }), 2, 2);
+            layout.Controls.Add(ActionButton("自适应充气", delegate { RunStretchTraining(TrainingMode.AdaptiveInflation); }), 3, 2);
+
+            layout.Controls.Add(SectionTitle("大腿气囊"), 0, 3);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 3), 4);
+            layout.Controls.Add(ActionButton("大腿充气", delegate { SendStretch("5", "大腿充气"); }), 0, 4);
+            layout.Controls.Add(ActionButton("大腿保持", delegate { SendStretch("6", "大腿保持"); }), 1, 4);
+            layout.Controls.Add(ActionButton("大腿放气", delegate { SendStretch("7", "大腿放气"); }), 2, 4);
+
+            layout.Controls.Add(SectionTitle("小腿气囊"), 0, 5);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 5), 4);
+            layout.Controls.Add(ActionButton("小腿充气", delegate { SendStretch("8", "小腿充气"); }), 0, 6);
+            layout.Controls.Add(ActionButton("小腿保持", delegate { SendStretch("9", "小腿保持"); }), 1, 6);
+            layout.Controls.Add(ActionButton("小腿放气", delegate { SendStretch("q", "小腿放气"); }), 2, 6);
+            stretchStateLabel = LabelValue("推杆状态：待反馈");
+            layout.Controls.Add(stretchStateLabel, 0, 7);
+            layout.SetColumnSpan(stretchStateLabel, 4);
+            return layout;
+        }
+
+        private Control BuildMotorDataPanel()
+        {
+            var panel = CardPanel();
+            panel.Dock = DockStyle.Fill;
+            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(12) };
+            panel.Controls.Add(layout);
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 33));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 33));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 34));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+
+            angleMetricLabel = MetricValue("0 deg");
+            layout.Controls.Add(FieldBlock("关节角度", angleMetricLabel), 0, 0);
+            motorWave = new WavePanel { Dock = DockStyle.Fill, Title = "电机角度" };
+            layout.Controls.Add(motorWave, 0, 1);
+            layout.Controls.Add(new WavePanel { Dock = DockStyle.Fill, Title = "速度" }, 0, 2);
+            layout.Controls.Add(new WavePanel { Dock = DockStyle.Fill, Title = "力矩/电流" }, 0, 3);
+            sessionStateLabel = MetricValue("就绪");
+            layout.Controls.Add(FieldBlock("训练状态", sessionStateLabel), 0, 4);
+            return panel;
+        }
+
+        private Control BuildSignalTabs()
+        {
+            var tabs = new TabControl { Dock = DockStyle.Fill };
+            var emgPage = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4, Padding = new Padding(10) };
+            emgPage.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            emgPage.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            emgPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+            emgPage.RowStyles.Add(new RowStyle(SizeType.Percent, 36));
+            emgPage.RowStyles.Add(new RowStyle(SizeType.Percent, 36));
+            emgPage.RowStyles.Add(new RowStyle(SizeType.Percent, 28));
+            svmMetricLabel = MetricValue("待采集");
+            emgPage.Controls.Add(FieldBlock("SVM 输出", svmMetricLabel), 0, 0);
+            emgPage.SetColumnSpan(emgPage.GetControlFromPosition(0, 0), 2);
+            emgWave = new WavePanel { Dock = DockStyle.Fill, Title = "EMG 通道" };
+            emgPage.Controls.Add(emgWave, 0, 1);
+            emgPage.SetColumnSpan(emgWave, 2);
+            emgPage.Controls.Add(new WavePanel { Dock = DockStyle.Fill, Title = "Trigger" }, 0, 2);
+            emgPage.Controls.Add(new WavePanel { Dock = DockStyle.Fill, Title = "State" }, 1, 2);
+            emgPage.Controls.Add(OperationPanel(), 0, 3);
+            emgPage.SetColumnSpan(emgPage.GetControlFromPosition(0, 3), 2);
+
+            var stretchPage = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(10) };
+            stretchPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+            stretchPage.RowStyles.Add(new RowStyle(SizeType.Percent, 36));
+            stretchPage.RowStyles.Add(new RowStyle(SizeType.Percent, 36));
+            stretchPage.RowStyles.Add(new RowStyle(SizeType.Percent, 28));
+            pressureMetricLabel = MetricValue("0 N");
+            stretchPage.Controls.Add(FieldBlock("牵伸压力", pressureMetricLabel), 0, 0);
+            pressureWave = new WavePanel { Dock = DockStyle.Fill, Title = "推杆位置 / 压力" };
+            stretchPage.Controls.Add(pressureWave, 0, 1);
+            stretchPage.Controls.Add(new WavePanel { Dock = DockStyle.Fill, Title = "压力热区" }, 0, 2);
+            stretchPage.Controls.Add(AlertPanel(), 0, 3);
+
+            tabs.TabPages.Add(TabPageWith("肌电数据", emgPage));
+            tabs.TabPages.Add(TabPageWith("推杆数据", stretchPage));
+            tabs.TabPages.Add(TabPageWith("记录", BuildRecordsListPanel()));
+            return tabs;
+        }
+
+        private Control BuildBottomStatusPanel()
+        {
+            var panel = CardPanel();
+            panel.Dock = DockStyle.Fill;
+            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2, Padding = new Padding(12) };
+            panel.Controls.Add(layout);
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 52));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
+            layout.Controls.Add(LabelValue("训练开始前请完成患者信息登记、设备启动和活动范围标定。"), 0, 0);
+            layout.SetColumnSpan(layout.GetControlFromPosition(0, 0), 3);
+            layout.Controls.Add(ActionButton("患者信息登记", delegate { ShowPatient(); }), 0, 1);
+            layout.Controls.Add(ActionButton("保存当前记录", ExportRecord), 1, 1);
+            layout.Controls.Add(ActionButton("设备停止", EmergencyStop), 2, 1);
+            return panel;
         }
 
         private Control OperationPanel()
@@ -270,7 +473,7 @@ namespace ClinicRehabSuite
             alertLabel = new Label
             {
                 Dock = DockStyle.Fill,
-                Text = "当前无未处理告警。所有硬件命令通过服务层记录，未连接硬件时自动进入模拟模式。",
+                Text = "当前无未处理告警。硬件命令只会发送到已连接端口；未连接时会明确报错。",
                 TextAlign = ContentAlignment.MiddleLeft,
                 ForeColor = Color.FromArgb(55, 65, 81),
                 Padding = new Padding(18, 0, 18, 0)
@@ -322,15 +525,13 @@ namespace ClinicRehabSuite
 
             motorPortBox = Combo("COM4", SerialPort.GetPortNames().Concat(new[] { "COM4" }).Distinct().ToArray());
             stretchPortBox = Combo("COM10", SerialPort.GetPortNames().Concat(new[] { "COM10" }).Distinct().ToArray());
-            deviceModeBox = Combo("真实硬件", new[] { "真实硬件", "模拟模式" });
             layout.Controls.Add(FieldBlock("大然电机 CAN", motorPortBox), 0, 1);
             layout.Controls.Add(FieldBlock("推杆/气囊 Arduino", stretchPortBox), 1, 1);
             layout.Controls.Add(FieldBlock("Opensignal TCP", LabelValue("127.0.0.1:5555")), 2, 1);
-            layout.Controls.Add(FieldBlock("运行模式", deviceModeBox), 0, 2);
             layout.Controls.Add(ActionButton("连接设备", ConnectDevices), 0, 3);
             layout.Controls.Add(ActionButton("断开设备", DisconnectDevices), 1, 3);
             layout.Controls.Add(ActionButton("设备自检", DeviceSelfTest), 2, 3);
-            layout.Controls.Add(LabelValue("运行模式默认真实硬件。模拟模式不会打开任何真实端口；真实硬件模式下任一通道连接失败都会报错并停止连接。"), 0, 5);
+            layout.Controls.Add(LabelValue("所有通道按真实硬件连接。任一通道连接失败都会报错并停止连接，不再自动降级。"), 0, 5);
             layout.SetColumnSpan(layout.GetControlFromPosition(0, 5), 3);
         }
 
@@ -355,7 +556,7 @@ namespace ClinicRehabSuite
             layout.Controls.Add(ActionButton("三分疼痛角", CalibratePainAngle), 1, 3);
             layout.Controls.Add(ActionButton("训练后最大角", MeasurePostAngle), 2, 3);
             layout.Controls.Add(ActionButton("生成 SVM 模型", TrainDetectorFromCalibration), 3, 3);
-            layout.Controls.Add(LabelValue("标定会复用实时电机角度、OpenSignal 窗口和原生 SVM 训练接口；没有硬件时会以最近采样/模拟数据执行流程自检。"), 0, 5);
+            layout.Controls.Add(LabelValue("标定会复用实时电机角度、OpenSignal 窗口和原生 SVM 训练接口；没有真实采样时不会生成生产模型。"), 0, 5);
             layout.SetColumnSpan(layout.GetControlFromPosition(0, 5), 4);
         }
 
@@ -374,23 +575,29 @@ namespace ClinicRehabSuite
             layout.Controls.Add(SectionTitle("处方参数"), 0, 0);
             layout.SetColumnSpan(layout.GetControlFromPosition(0, 0), 4);
 
-            trainModeBox = Combo("被动训练", new[] { "被动训练", "对抗训练", "自适应被动训练", "自适应对抗训练", "静态牵伸", "自适应充气" });
+            trainModeBox = Combo("被动训练", new[] { "被动训练", "对抗训练", "自适应被动训练", "自适应对抗训练", "静态牵引", "自适应充气" });
+            speedLevelBox = Combo("适中", new[] { "缓慢", "适中", "快速" });
+            againstPowerBox = Combo("适中", new[] { "较小", "适中", "较大" });
             startAngleBox = Numeric(30, 0, 120);
             endAngleBox = Numeric(60, 5, 120);
             repeatBox = Numeric(1, 1, 30);
             keepTimeBox = Numeric(10, 1, 60);
             restTimeBox = Numeric(10, 1, 60);
             tractionForceBox = Numeric(10, 1, 50);
+            tractionTimeBox = Numeric(10, 1, 60);
 
             var modeField = FieldBlock("训练模式", trainModeBox);
             layout.Controls.Add(modeField, 0, 1);
             layout.SetColumnSpan(modeField, 2);
-            layout.Controls.Add(FieldBlock("起始角度", startAngleBox), 2, 1);
-            layout.Controls.Add(FieldBlock("终止角度", endAngleBox), 3, 1);
-            layout.Controls.Add(FieldBlock("训练次数", repeatBox), 0, 3);
-            layout.Controls.Add(FieldBlock("保持时间", keepTimeBox), 1, 3);
-            layout.Controls.Add(FieldBlock("休息时间", restTimeBox), 2, 3);
-            layout.Controls.Add(FieldBlock("牵伸力", tractionForceBox), 3, 3);
+            layout.Controls.Add(FieldBlock("速度", speedLevelBox), 2, 1);
+            layout.Controls.Add(FieldBlock("对抗力量", againstPowerBox), 3, 1);
+            layout.Controls.Add(FieldBlock("起始角度", startAngleBox), 0, 3);
+            layout.Controls.Add(FieldBlock("终止角度", endAngleBox), 1, 3);
+            layout.Controls.Add(FieldBlock("训练次数", repeatBox), 2, 3);
+            layout.Controls.Add(FieldBlock("保持时间", keepTimeBox), 3, 3);
+            layout.Controls.Add(FieldBlock("休息时间", restTimeBox), 0, 4);
+            layout.Controls.Add(FieldBlock("牵伸力", tractionForceBox), 1, 4);
+            layout.Controls.Add(FieldBlock("牵引时间", tractionTimeBox), 2, 4);
             layout.Controls.Add(ActionButton("启动训练", StartTraining), 0, 5);
             layout.Controls.Add(ActionButton("结束/急停", EmergencyStop), 1, 5);
             layout.Controls.Add(ActionButton("应用处方", ApplyPrescription), 2, 5);
@@ -432,21 +639,30 @@ namespace ClinicRehabSuite
             layout.Controls.Add(SectionTitle("牵伸与气囊控制"), 0, 0);
             layout.SetColumnSpan(layout.GetControlFromPosition(0, 0), 4);
             layout.Controls.Add(ActionButton("推杆归零", delegate { SendStretch("1", "推杆归零"); }), 0, 1);
-            layout.Controls.Add(ActionButton("推杆伸出", delegate { SendStretch("3", "推杆伸出"); }), 1, 1);
-            layout.Controls.Add(ActionButton("推杆回缩", delegate { SendStretch("4", "推杆回缩"); }), 2, 1);
-            layout.Controls.Add(ActionButton("开启反馈", delegate { SendStretch("o", "开启反馈"); }), 3, 1);
+            layout.Controls.Add(ActionButton("一次拉伸", delegate { SendStretch("2", "一次拉伸"); }), 1, 1);
+            layout.Controls.Add(ActionButton("推杆伸出", delegate { SendStretch("3", "推杆伸出"); }), 2, 1);
+            layout.Controls.Add(ActionButton("推杆回缩", delegate { SendStretch("4", "推杆回缩"); }), 3, 1);
+            layout.Controls.Add(ActionButton("开启反馈", delegate { SendStretch("o", "开启反馈"); }), 0, 2);
+            layout.Controls.Add(ActionButton("停止反馈", delegate { SendStretch("c", "停止反馈"); }), 1, 2);
             layout.Controls.Add(ActionButton("大腿充气", delegate { SendStretch("5", "大腿充气"); }), 0, 3);
             layout.Controls.Add(ActionButton("大腿保持", delegate { SendStretch("6", "大腿保持"); }), 1, 3);
-            layout.Controls.Add(ActionButton("小腿充气", delegate { SendStretch("8", "小腿充气"); }), 2, 3);
-            layout.Controls.Add(ActionButton("停止反馈", delegate { SendStretch("c", "停止反馈"); }), 3, 3);
+            layout.Controls.Add(ActionButton("大腿放气", delegate { SendStretch("7", "大腿放气"); }), 2, 3);
+            layout.Controls.Add(ActionButton("小腿充气", delegate { SendStretch("8", "小腿充气"); }), 0, 4);
+            layout.Controls.Add(ActionButton("小腿保持", delegate { SendStretch("9", "小腿保持"); }), 1, 4);
+            layout.Controls.Add(ActionButton("小腿放气", delegate { SendStretch("q", "小腿放气"); }), 2, 4);
         }
 
         private void ShowRecords()
         {
             SetPage("Records", "记录与导出");
+            var panel = BuildRecordsListPanel();
+            content.Controls.Add(panel);
+        }
+
+        private Control BuildRecordsListPanel()
+        {
             var panel = CardPanel();
             panel.Dock = DockStyle.Fill;
-            content.Controls.Add(panel);
             var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(24) };
             panel.Controls.Add(layout);
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
@@ -457,17 +673,17 @@ namespace ClinicRehabSuite
             var list = new ListBox { Dock = DockStyle.Fill };
             foreach (var file in recorder.ListRecords()) list.Items.Add(file);
             layout.Controls.Add(list, 0, 2);
+            return panel;
         }
 
         private void ConnectDevices(object sender, EventArgs e)
         {
             var motorPort = motorPortBox == null ? "COM4" : motorPortBox.Text;
             var stretchPort = stretchPortBox == null ? "COM10" : stretchPortBox.Text;
-            var forceSimulation = deviceModeBox != null && deviceModeBox.Text.Contains("模拟");
             try
             {
-                deviceController.ConnectWithMode(motorPort, stretchPort, "127.0.0.1", 5555, forceSimulation);
-                connectionLabel.Text = deviceController.IsSimulation ? "设备：模拟模式" : "设备：已连接";
+                deviceController.Connect(motorPort, stretchPort, "127.0.0.1", 5555);
+                connectionLabel.Text = "设备：已连接";
                 statusLabel.Text = "连接完成";
                 alertLabelSafe(deviceController.LastMessage);
                 AddLog(deviceController.LastMessage);
@@ -502,12 +718,13 @@ namespace ClinicRehabSuite
             var calibration = ClinicalWorkflow.MeasureMaxAngle(telemetry);
             if (calibration == null)
             {
-                alertLabelSafe("没有可用角度数据，请先连接设备或运行模拟训练。");
+                alertLabelSafe("没有可用角度数据，请先连接设备并采集电机反馈。");
                 return;
             }
             if (endAngleBox != null) endAngleBox.Value = ClampDecimal((decimal)Math.Round(calibration.LinkageAngle), endAngleBox.Minimum, endAngleBox.Maximum);
             AddLog("训练前最大角：" + calibration.LinkageAngle.ToString("F1", CultureInfo.InvariantCulture) + " deg");
             alertLabelSafe("训练前最大角已记录：" + calibration.LinkageAngle.ToString("F1", CultureInfo.InvariantCulture) + " deg");
+            if (machineMaxLabel != null) machineMaxLabel.Text = "训练前最大角：" + calibration.LinkageAngle.ToString("F1", CultureInfo.InvariantCulture) + " deg";
         }
 
         private void CalibratePainAngle(object sender, EventArgs e)
@@ -521,6 +738,7 @@ namespace ClinicRehabSuite
             if (endAngleBox != null) endAngleBox.Value = ClampDecimal((decimal)Math.Round(calibration.LinkageAngle), endAngleBox.Minimum, endAngleBox.Maximum);
             AddLog("三分疼痛角：" + calibration.LinkageAngle.ToString("F1", CultureInfo.InvariantCulture) + " deg");
             alertLabelSafe("三分疼痛角已记录：" + calibration.LinkageAngle.ToString("F1", CultureInfo.InvariantCulture) + " deg");
+            if (machineMaxLabel != null) machineMaxLabel.Text = "三分疼痛角：" + calibration.LinkageAngle.ToString("F1", CultureInfo.InvariantCulture) + " deg";
         }
 
         private void MeasurePostAngle(object sender, EventArgs e)
@@ -534,6 +752,7 @@ namespace ClinicRehabSuite
             }
             AddLog("训练后最大角：设备 " + calibration.LinkageAngle.ToString("F1", CultureInfo.InvariantCulture) + " deg，量角 " + measured.ToString("F1", CultureInfo.InvariantCulture) + " deg");
             alertLabelSafe("训练后最大角已记录。");
+            if (machineMaxLabel != null) machineMaxLabel.Text = "训练后最大角：" + calibration.LinkageAngle.ToString("F1", CultureInfo.InvariantCulture) + " deg";
         }
 
         private void TrainDetectorFromCalibration(object sender, EventArgs e)
@@ -541,15 +760,44 @@ namespace ClinicRehabSuite
             var modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Models");
             Directory.CreateDirectory(modelPath);
             modelPath = Path.Combine(modelPath, "pain_svm.model");
-            var labels = new[] { -1.0, -1.0, 1.0, 1.0 };
-            var features = new[] { 0.05, 0.05, 0.10, 0.08, 1.0, 1.0, 1.2, 1.1 };
-            if (!painDetector.Train(labels, features, 4, 2, modelPath))
+            var trainingSet = BuildSvmTrainingSet(telemetry);
+            if (trainingSet == null)
+            {
+                alertLabelSafe("SVM 模型未生成：需要真实 OpenSignal 采样，并且记录中要同时包含疼痛/非疼痛标签。");
+                return;
+            }
+            if (!painDetector.Train(trainingSet.Labels, trainingSet.Features, trainingSet.SampleCount, trainingSet.FeatureCount, modelPath))
             {
                 alertLabelSafe("SVM 模型训练失败，请检查 ClinicCore.dll。");
                 return;
             }
-            AddLog("SVM 模型已生成：" + modelPath);
-            alertLabelSafe("SVM 模型已生成。");
+            AddLog("SVM 模型已生成：" + modelPath + "，样本数：" + trainingSet.SampleCount.ToString(CultureInfo.InvariantCulture));
+            alertLabelSafe("SVM 模型已由真实采样生成。");
+        }
+
+        private void SendOpenSignalCommand(string command, Label idLabel, TextBox sendBox, TextBox receiveBox)
+        {
+            try
+            {
+                var response = deviceController.SendOpenSignalCommand(command);
+                statusLabel.Text = "OpenSignal: " + command;
+                if (sendBox != null) sendBox.Text = command;
+                if (receiveBox != null) receiveBox.Text = response;
+                if (idLabel != null)
+                {
+                    var config = OpenSignalParser.ParseConfig(response);
+                    if (config != null && !string.IsNullOrEmpty(config.DeviceId))
+                    {
+                        idLabel.Text = "设备 ID：" + config.DeviceId;
+                    }
+                }
+                AddLog("OpenSignal 指令：" + command);
+            }
+            catch (Exception ex)
+            {
+                alertLabelSafe("OpenSignal 指令失败：" + ex.Message);
+                AddLog("OpenSignal 指令失败：" + ex.Message);
+            }
         }
 
         private void ApplyPrescription(object sender, EventArgs e)
@@ -561,15 +809,33 @@ namespace ClinicRehabSuite
 
         private void StartTraining(object sender, EventArgs e)
         {
-            activePrescription = ReadPrescription();
-            activeSession = new TrainingSession(activePrescription);
-            training = true;
-            trainingStart = DateTime.Now;
-            trainingSeconds = Math.Max(1, (int)Math.Ceiling(activeSession.TotalSeconds));
-            statusLabel.Text = "训练中";
-            sessionStateLabelSafe("训练中");
-            deviceController.StartTraining(activePrescription);
-            AddLog("训练开始：" + activePrescription.Mode);
+            try
+            {
+                activePrescription = ReadPrescription();
+                if (activePrescription.Mode == TrainingMode.StaticTraction || activePrescription.Mode == TrainingMode.AdaptiveInflation)
+                {
+                    activeSession = null;
+                    training = false;
+                }
+                else
+                {
+                    activeSession = new TrainingSession(activePrescription);
+                    training = true;
+                    trainingStart = DateTime.Now;
+                    trainingSeconds = Math.Max(1, (int)Math.Ceiling(activeSession.TotalSeconds));
+                }
+                deviceController.StartTraining(activePrescription);
+                statusLabel.Text = "训练中";
+                sessionStateLabelSafe("训练中");
+                AddLog("训练开始：" + activePrescription.Mode);
+            }
+            catch (Exception ex)
+            {
+                training = false;
+                statusLabel.Text = "训练启动失败";
+                alertLabelSafe(ex.Message);
+                AddLog("训练启动失败：" + ex.Message);
+            }
         }
 
         private void EmergencyStop(object sender, EventArgs e)
@@ -578,9 +844,17 @@ namespace ClinicRehabSuite
             if (activeSession != null) activeSession.Stop();
             statusLabel.Text = "急停";
             sessionStateLabelSafe("已急停");
-            deviceController.EmergencyStop();
-            alertLabelSafe("急停已触发，运动命令停止。");
-            AddLog("急停触发。");
+            try
+            {
+                deviceController.EmergencyStop();
+                alertLabelSafe("急停已触发，运动命令停止。");
+                AddLog("急停触发。");
+            }
+            catch (Exception ex)
+            {
+                alertLabelSafe("急停命令未发送：" + ex.Message);
+                AddLog("急停命令未发送：" + ex.Message);
+            }
         }
 
         private void ExportRecord(object sender, EventArgs e)
@@ -593,9 +867,76 @@ namespace ClinicRehabSuite
 
         private void SendStretch(string command, string name)
         {
-            deviceController.SendStretchCommand(command);
-            statusLabel.Text = name;
-            AddLog("牵伸控制：" + name + " [" + command + "]");
+            try
+            {
+                deviceController.SendStretchCommand(command);
+                statusLabel.Text = name;
+                if (stretchStateLabel != null) stretchStateLabel.Text = "推杆状态：" + name + " [" + command + "]";
+                AddLog("牵伸控制：" + name + " [" + command + "]");
+            }
+            catch (Exception ex)
+            {
+                alertLabelSafe("牵伸命令未发送：" + ex.Message);
+                AddLog("牵伸命令未发送：" + ex.Message);
+            }
+        }
+
+        private void RunStretchTraining(TrainingMode mode)
+        {
+            try
+            {
+                var prescription = ReadPrescription();
+                prescription.Mode = mode;
+                deviceController.StartTraining(prescription);
+                statusLabel.Text = mode == TrainingMode.StaticTraction ? "静态牵引" : "自适应充气";
+                if (stretchStateLabel != null) stretchStateLabel.Text = "推杆状态：" + statusLabel.Text;
+                AddLog("牵伸训练：" + prescription.Mode);
+            }
+            catch (Exception ex)
+            {
+                alertLabelSafe("牵伸训练未启动：" + ex.Message);
+                AddLog("牵伸训练未启动：" + ex.Message);
+            }
+        }
+
+        private SvmTrainingSet BuildSvmTrainingSet(IList<TelemetrySample> samples)
+        {
+            if (samples == null || samples.Count < 40) return null;
+            const int windowLength = 20;
+            const int stepLength = 10;
+            var labels = new List<double>();
+            var featureRows = new List<double[]>();
+            for (var start = 0; start + windowLength <= samples.Count; start += stepLength)
+            {
+                var window = samples.Skip(start).Take(windowLength).ToArray();
+                var label = window.Max(x => x.PainLabel);
+                if (label != 0 && label != 1) continue;
+                if (window.All(x => Math.Abs(x.Emg) < 1.0e-12)) continue;
+                var emg = new EmgWindow();
+                foreach (var sample in window)
+                {
+                    emg.Samples.Add(new[] { sample.Emg, sample.Emg, sample.Emg, sample.Emg });
+                }
+                int featureCount;
+                var features = SvmPainDetector.ExtractFeatures(emg, 2000, out featureCount);
+                if (features == null || featureCount <= 0) continue;
+                labels.Add(label == 1 ? 1.0 : -1.0);
+                featureRows.Add(features.Take(featureCount).ToArray());
+            }
+            if (labels.Distinct().Count() < 2 || featureRows.Count == 0) return null;
+            var width = featureRows.Min(x => x.Length);
+            var flat = new double[featureRows.Count * width];
+            for (var row = 0; row < featureRows.Count; row++)
+            {
+                Array.Copy(featureRows[row], 0, flat, row * width, width);
+            }
+            return new SvmTrainingSet
+            {
+                Labels = labels.ToArray(),
+                Features = flat,
+                SampleCount = featureRows.Count,
+                FeatureCount = width
+            };
         }
 
         private static decimal ClampDecimal(decimal value, decimal min, decimal max)
@@ -631,10 +972,19 @@ namespace ClinicRehabSuite
                 Current = snapshot.HasMotorState ? snapshot.Motor.Torque : 0,
                 Emg = emgWindow == null ? 0 : emgWindow.AverageAbs(),
                 Pressure = snapshot.Pressure,
-                SvmScore = svmScore
+                SvmScore = svmScore,
+                PainLabel = step == null ? 0 : step.PainLabel
             };
             telemetry.Add(sample);
             if (telemetry.Count > 2000) telemetry.RemoveRange(0, telemetry.Count - 2000);
+            if (activeSession != null)
+            {
+                activeSession.Observe(sample);
+                activeSession.CompleteCycleIfNeeded(step);
+            }
+            if (angleMetricLabel != null) angleMetricLabel.Text = sample.Angle.ToString("F1", CultureInfo.InvariantCulture) + " deg";
+            if (pressureMetricLabel != null) pressureMetricLabel.Text = sample.Pressure.ToString("F1", CultureInfo.InvariantCulture) + " N";
+            if (svmMetricLabel != null) svmMetricLabel.Text = emgWindow == null ? "待采集" : svmScore.ToString("F2", CultureInfo.InvariantCulture);
             if (motorWave != null) motorWave.SetSamples(telemetry.Select(x => x.Angle).TakeLastCompat(240).ToList());
             if (emgWave != null) emgWave.SetSamples(telemetry.Select(x => x.Emg * 100).TakeLastCompat(240).ToList());
             if (pressureWave != null) pressureWave.SetSamples(telemetry.Select(x => x.Pressure).TakeLastCompat(240).ToList());
@@ -656,6 +1006,8 @@ namespace ClinicRehabSuite
         private TrainingPrescription ReadPrescription()
         {
             var mode = trainModeBox == null ? "被动训练" : trainModeBox.Text;
+            var speed = speedLevelBox == null ? "适中" : speedLevelBox.Text;
+            var againstPower = againstPowerBox == null ? "适中" : againstPowerBox.Text;
             return new TrainingPrescription
             {
                 Mode = TrainingModeCatalog.FromDisplayName(mode),
@@ -665,19 +1017,45 @@ namespace ClinicRehabSuite
                 KeepSeconds = keepTimeBox == null ? 10 : (double)keepTimeBox.Value,
                 RestSeconds = restTimeBox == null ? 10 : (double)restTimeBox.Value,
                 TractionForce = tractionForceBox == null ? 10 : (double)tractionForceBox.Value,
-                TravelSeconds = 15,
-                AgainstPower = 1.5
+                TravelSeconds = TravelSecondsFromSpeed(speed),
+                AgainstPower = AgainstPowerFromLevel(againstPower),
+                TractionSeconds = tractionTimeBox == null ? 10 : (double)tractionTimeBox.Value
             };
+        }
+
+        private static double TravelSecondsFromSpeed(string speedLevel)
+        {
+            if (speedLevel != null && speedLevel.Contains("缓慢")) return 20;
+            if (speedLevel != null && speedLevel.Contains("快速")) return 10;
+            return 15;
+        }
+
+        private static double AgainstPowerFromLevel(string level)
+        {
+            if (level != null && level.Contains("较小")) return 1.0;
+            if (level != null && level.Contains("较大")) return 2.0;
+            return 1.5;
         }
 
         private Panel CardPanel()
         {
-            return new Panel
+            var panel = new Panel
             {
-                BackColor = Color.White,
+                BackColor = SurfaceColor,
                 Margin = new Padding(8),
                 Padding = new Padding(1)
             };
+            panel.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                var bounds = ((Control)sender).ClientRectangle;
+                bounds.Width -= 1;
+                bounds.Height -= 1;
+                using (var pen = new Pen(BorderColor))
+                {
+                    e.Graphics.DrawRectangle(pen, bounds);
+                }
+            };
+            return panel;
         }
 
         private Control WrapPanel(Control child)
@@ -710,7 +1088,7 @@ namespace ClinicRehabSuite
                 Text = text,
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI Semibold", 13F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(31, 41, 55),
+                ForeColor = TextColor,
                 TextAlign = ContentAlignment.MiddleLeft
             };
         }
@@ -722,13 +1100,23 @@ namespace ClinicRehabSuite
                 Text = text,
                 Dock = DockStyle.Fill,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(37, 99, 235),
+                BackColor = IsDestructiveAction(text) ? DangerColor : PrimaryColor,
                 ForeColor = Color.White,
-                Margin = new Padding(4)
+                Margin = new Padding(5),
+                Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
             button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = IsDestructiveAction(text) ? DangerHoverColor : PrimaryHoverColor;
+            button.FlatAppearance.MouseDownBackColor = SecondaryColor;
             button.Click += handler;
             return button;
+        }
+
+        private static bool IsDestructiveAction(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            return text.Contains("急停") || text.Contains("停止") || text.Contains("关闭") || text.Contains("结束");
         }
 
         private ComboBox Combo(string value, string[] items)
@@ -737,7 +1125,10 @@ namespace ClinicRehabSuite
             {
                 Dock = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDown,
-                IntegralHeight = true
+                IntegralHeight = true,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = SurfaceColor,
+                ForeColor = TextColor
             };
             box.Items.AddRange(items);
             box.Text = value;
@@ -768,14 +1159,16 @@ namespace ClinicRehabSuite
                 Minimum = min,
                 Maximum = max,
                 Value = value,
-                DecimalPlaces = 0
+                DecimalPlaces = 0,
+                BackColor = SurfaceColor,
+                ForeColor = TextColor
             };
         }
 
         private Control FieldBlock(string label, Control input)
         {
             var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(4) };
-            var labelControl = new Label { Text = label, Dock = DockStyle.Top, Height = 20, ForeColor = Color.FromArgb(75, 85, 99) };
+            var labelControl = new Label { Text = label, Dock = DockStyle.Top, Height = 20, ForeColor = MutedTextColor };
             input.Dock = DockStyle.Fill;
             panel.Controls.Add(input);
             panel.Controls.Add(labelControl);
@@ -789,13 +1182,47 @@ namespace ClinicRehabSuite
                 Text = text,
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Color.FromArgb(31, 41, 55)
+                ForeColor = TextColor
+            };
+        }
+
+        private Label MetricValue(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI Semibold", 18F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = TextColor
+            };
+        }
+
+        private TabPage TabPageWith(string title, Control contentControl)
+        {
+            var page = new TabPage(title) { BackColor = AppBackground, Padding = new Padding(6) };
+            contentControl.Dock = DockStyle.Fill;
+            page.Controls.Add(contentControl);
+            return page;
+        }
+
+        private TextBox MultilineBox()
+        {
+            return new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = SurfaceColor,
+                ForeColor = TextColor
             };
         }
 
         private void AddFormField(TableLayoutPanel layout, string label, string value, int column, int row)
         {
-            layout.Controls.Add(FieldBlock(label, new TextBox { Text = value, BorderStyle = BorderStyle.FixedSingle }), column, row);
+            layout.Controls.Add(FieldBlock(label, new TextBox { Text = value, BorderStyle = BorderStyle.FixedSingle, BackColor = SurfaceColor, ForeColor = TextColor }), column, row);
         }
 
         private void AddLog(string message)
@@ -805,7 +1232,7 @@ namespace ClinicRehabSuite
             {
                 Text = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture) + "  " + message,
                 AutoSize = true,
-                ForeColor = Color.FromArgb(55, 65, 81),
+                ForeColor = TextColor,
                 Margin = new Padding(0, 0, 0, 10)
             });
         }
@@ -825,6 +1252,10 @@ namespace ClinicRehabSuite
     {
         private readonly List<double> samples = new List<double>();
         private string renderedTitle;
+        private static readonly Color SurfaceColor = Color.White;
+        private static readonly Color BorderColor = Color.FromArgb(214, 221, 230);
+        private static readonly Color TextColor = Color.FromArgb(25, 33, 46);
+        private static readonly Color PrimaryColor = Color.FromArgb(12, 111, 133);
         public string Title { get; set; }
 
         public WavePanel()
@@ -858,10 +1289,10 @@ namespace ClinicRehabSuite
         {
             base.OnPaint(e);
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            e.Graphics.Clear(Color.White);
-            using (var titleBrush = new SolidBrush(Color.FromArgb(31, 41, 55)))
-            using (var gridPen = new Pen(Color.FromArgb(229, 231, 235)))
-            using (var linePen = new Pen(Color.FromArgb(20, 184, 166), 2F))
+            e.Graphics.Clear(SurfaceColor);
+            using (var titleBrush = new SolidBrush(TextColor))
+            using (var gridPen = new Pen(BorderColor))
+            using (var linePen = new Pen(PrimaryColor, 2F))
             {
                 renderedTitle = Title;
                 using (var titleFont = new Font("Segoe UI Semibold", 11F, FontStyle.Bold))
@@ -896,20 +1327,12 @@ namespace ClinicRehabSuite
         private SerialPort stretchPort;
         private TcpClient openSignalClient;
 
-        public bool IsSimulation { get; private set; }
         public string LastMessage { get; private set; }
+        public string LastOpenSignalResponse { get; private set; }
 
-        public void ConnectWithMode(string motorPortName, string stretchPortName, string host, int port, bool forceSimulation)
+        public void Connect(string motorPortName, string stretchPortName, string host, int port)
         {
             Dispose();
-            if (forceSimulation)
-            {
-                IsSimulation = true;
-                LastMessage = "Simulation mode enabled: real CAN, Arduino and OpenSignal channels are not opened.";
-                return;
-            }
-
-            IsSimulation = false;
             var messages = new List<string>();
             var errors = new List<string>();
 
@@ -954,7 +1377,6 @@ namespace ClinicRehabSuite
             if (errors.Count > 0)
             {
                 Dispose();
-                IsSimulation = false;
                 LastMessage = "Real hardware connection failed: " + string.Join("; ", errors.ToArray());
                 throw new InvalidOperationException(LastMessage);
             }
@@ -962,67 +1384,40 @@ namespace ClinicRehabSuite
             LastMessage = string.Join("; ", messages.ToArray());
         }
 
-        public void Connect(string motorPortName, string stretchPortName, string host, int port)
+        public string SendOpenSignalCommand(string command)
         {
-            ConnectWithMode(motorPortName, stretchPortName, host, port, true);
-        }
-
-        public void Connect(string motorPortName, string stretchPortName, string host, int port, bool forceSimulation)
-        {
-            Dispose();
-            if (forceSimulation)
+            if (string.IsNullOrWhiteSpace(command)) return "";
+            if (openSignalClient == null || !openSignalClient.Connected)
             {
-                IsSimulation = true;
-                LastMessage = "已进入模拟模式：不会打开 CAN、Arduino 或 OpenSignal 真实通道。";
-                return;
+                throw new InvalidOperationException("OpenSignal is not connected.");
             }
-            IsSimulation = false;
-            var messages = new List<string>();
-            var errors = new List<string>();
-            try
+            var stream = openSignalClient.GetStream();
+            var bytes = Encoding.UTF8.GetBytes(command);
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush();
+            var buffer = new byte[8192];
+            var started = DateTime.Now;
+            while (!stream.DataAvailable && (DateTime.Now - started).TotalMilliseconds < 500)
             {
-                motorPort = new SerialPort(motorPortName, 115200) { ReadTimeout = 500, WriteTimeout = 500 };
-                motorPort.Open();
-                messages.Add("CAN 已连接 " + motorPortName);
+                Application.DoEvents();
             }
-            catch (Exception ex)
+            if (!stream.DataAvailable)
             {
-                IsSimulation = true;
-                messages.Add("CAN 进入模拟模式：" + ex.Message);
+                LastOpenSignalResponse = "";
+                LastMessage = "OpenSignal command sent without immediate response: " + command;
+                return LastOpenSignalResponse;
             }
-            try
-            {
-                stretchPort = new SerialPort(stretchPortName, 9600) { ReadTimeout = 500, WriteTimeout = 500 };
-                stretchPort.Open();
-                messages.Add("Arduino 已连接 " + stretchPortName);
-            }
-            catch (Exception ex)
-            {
-                IsSimulation = true;
-                messages.Add("Arduino 进入模拟模式：" + ex.Message);
-            }
-            try
-            {
-                openSignalClient = new TcpClient();
-                var result = openSignalClient.BeginConnect(host, port, null, null);
-                if (!result.AsyncWaitHandle.WaitOne(TimeSpan.FromMilliseconds(350)))
-                {
-                    throw new TimeoutException("连接超时");
-                }
-                openSignalClient.EndConnect(result);
-                messages.Add("Opensignal 已连接");
-            }
-            catch (Exception ex)
-            {
-                IsSimulation = true;
-                messages.Add("Opensignal 进入模拟模式：" + ex.Message);
-            }
-            LastMessage = string.Join("；", messages.ToArray());
+            var count = stream.Read(buffer, 0, buffer.Length);
+            LastOpenSignalResponse = count <= 0 ? "" : Encoding.UTF8.GetString(buffer, 0, count);
+            LastMessage = LastOpenSignalResponse;
+            return LastOpenSignalResponse;
         }
 
         public string SelfTest()
         {
-            if (IsSimulation) return "自检完成：当前为模拟模式，UI、记录与训练流程可运行；硬件命令未发送到真实设备。";
+            if (motorPort == null || !motorPort.IsOpen) throw new InvalidOperationException("CAN motor port is not connected.");
+            if (stretchPort == null || !stretchPort.IsOpen) throw new InvalidOperationException("Arduino stretch port is not connected.");
+            if (openSignalClient == null || !openSignalClient.Connected) throw new InvalidOperationException("OpenSignal TCP is not connected.");
             return "自检完成：硬件通道已打开。";
         }
 
@@ -1053,13 +1448,18 @@ namespace ClinicRehabSuite
         {
             var initial = new[] { 0.0, 0.0, 0.0, 0.0 };
             var current = new[] { prescription.TractionForce / 4.0, prescription.TractionForce / 4.0, prescription.TractionForce / 4.0, prescription.TractionForce / 4.0 };
-            double realLoad;
-            var command = ClinicalWorkflow.StaticTractionStep(prescription.TractionForce, initial, current, 0, false, out realLoad);
+            double realLoad = 0;
+            var command = TractionCommand.Extend;
             SendStretchCommand("o");
-            if (command == TractionCommand.Extend) SendStretchCommand("3");
+            for (var i = 0; i < 3; i++)
+            {
+                command = ClinicalWorkflow.StaticTractionStep(prescription.TractionForce, initial, current, i, false, out realLoad);
+                if (command != TractionCommand.Extend) break;
+                SendStretchCommand("3");
+            }
             if (command == TractionCommand.Hold) SendStretchCommand("c");
             if (command == TractionCommand.Stop) SendStretchCommand("c");
-            LastMessage = "Static traction command=" + command + ", load=" + realLoad.ToString("F2", CultureInfo.InvariantCulture);
+            LastMessage = "Static traction command=" + command + ", load=" + realLoad.ToString("F2", CultureInfo.InvariantCulture) + ", hold=" + prescription.TractionSeconds.ToString("F0", CultureInfo.InvariantCulture) + "s";
         }
 
         private void StartAdaptiveInflation()
@@ -1115,18 +1515,14 @@ namespace ClinicRehabSuite
 
         public void SendStretchCommand(string command)
         {
-            if (stretchPort != null && stretchPort.IsOpen)
-            {
-                stretchPort.Write(command);
-            }
+            if (stretchPort == null || !stretchPort.IsOpen) throw new InvalidOperationException("Arduino stretch port is not connected.");
+            stretchPort.Write(command);
         }
 
         private void SendMotorFrame(byte[] data)
         {
-            if (motorPort != null && motorPort.IsOpen)
-            {
-                motorPort.Write(data, 0, data.Length);
-            }
+            if (motorPort == null || !motorPort.IsOpen) throw new InvalidOperationException("CAN motor port is not connected.");
+            motorPort.Write(data, 0, data.Length);
         }
 
         private void SetMode(int id, int mode)
@@ -1412,6 +1808,48 @@ namespace ClinicRehabSuite
         public static extern int clinic_motor_impedance_frame(int id, double kp, double kd, byte[] outFrame16);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_set_angle_frame(int id, double angle, double speedOrTime, double param, int mode, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_step_execute_frame(int id, int mode, int multiAxis, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_preset_speed_frame(int id, double speed, double param, int mode, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_preset_torque_frame(int id, double torque, double param, int mode, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_motion_aid_frame(int id, double angle, double angleError, double speedError, double torque, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_read_property_frame(int id, int address, int dataType, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_adaptive_angle_frame(int id, double angle, double speed, double torque, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_adaptive_multi_execute_frame(byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_set_speed_frame(int id, double speed, double param, int mode, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_set_torque_frame(int id, double torque, double param, int mode, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_pid_property_frames(int id, double p, double i, double d, byte[] outFrame16Array48);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_angle_range_frames(int id, double angleMin, double angleMax, int persistent, int enable, byte[] outFrame16Array48);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_config_order_frame(int id, uint order, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int clinic_motor_init_config_frame(int id, byte[] outFrame16);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern double clinic_kinematics_linkage_to_motor(double linkageAngle);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
@@ -1571,6 +2009,130 @@ namespace ClinicRehabSuite
             return frame;
         }
 
+        public static byte[] SetAngle(int id, double angle, double speedOrTime, double param, int mode)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_set_angle_frame(id, angle, speedOrTime, param, mode, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build motor set-angle frame.");
+            return frame;
+        }
+
+        public static byte[] StepExecute(int id, int mode, bool multiAxis)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_step_execute_frame(id, mode, multiAxis ? 1 : 0, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build motor step-execute frame.");
+            return frame;
+        }
+
+        public static byte[] PresetSpeed(int id, double speed, double param, int mode)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_preset_speed_frame(id, speed, param, mode, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build motor speed frame.");
+            return frame;
+        }
+
+        public static byte[] PresetTorque(int id, double torque, double param, int mode)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_preset_torque_frame(id, torque, param, mode, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build motor torque frame.");
+            return frame;
+        }
+
+        public static byte[] MotionAid(int id, double angle, double angleError, double speedError, double torque)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_motion_aid_frame(id, angle, angleError, speedError, torque, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build motor motion-aid frame.");
+            return frame;
+        }
+
+        public static byte[] ReadProperty(int id, int address, int dataType)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_read_property_frame(id, address, dataType, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build motor read-property frame.");
+            return frame;
+        }
+
+        public static byte[] AdaptiveAngle(int id, double angle, double speed, double torque)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_adaptive_angle_frame(id, angle, speed, torque, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build adaptive angle frame.");
+            return frame;
+        }
+
+        public static byte[] AdaptiveMultiExecute()
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_adaptive_multi_execute_frame(frame) != 16) throw new InvalidOperationException("ClinicCore failed to build adaptive multi-axis frame.");
+            return frame;
+        }
+
+        public static byte[] SetSpeed(int id, double speed, double param, int mode)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_set_speed_frame(id, speed, param, mode, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build direct speed frame.");
+            return frame;
+        }
+
+        public static byte[] SetTorque(int id, double torque, double param, int mode)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_set_torque_frame(id, torque, param, mode, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build direct torque frame.");
+            return frame;
+        }
+
+        public static byte[][] PidProperties(int id, double p, double i, double d)
+        {
+            EnsureNativeCore();
+            var frames = new byte[48];
+            if (NativeCore.clinic_motor_pid_property_frames(id, p, i, d, frames) != 48) throw new InvalidOperationException("ClinicCore failed to build PID frames.");
+            return SplitFrames(frames, 3);
+        }
+
+        public static byte[][] AngleRange(int id, double angleMin, double angleMax, bool persistent, bool enable)
+        {
+            EnsureNativeCore();
+            var frames = new byte[48];
+            var written = NativeCore.clinic_motor_angle_range_frames(id, angleMin, angleMax, persistent ? 1 : 0, enable ? 1 : 0, frames);
+            if (written != 16 && written != 48) throw new InvalidOperationException("ClinicCore failed to build angle-range frames.");
+            return SplitFrames(frames, written / 16);
+        }
+
+        public static byte[] ConfigOrder(int id, uint order)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_config_order_frame(id, order, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build config order frame.");
+            return frame;
+        }
+
+        public static byte[] InitConfig(int id)
+        {
+            EnsureNativeCore();
+            var frame = new byte[16];
+            if (NativeCore.clinic_motor_init_config_frame(id, frame) != 16) throw new InvalidOperationException("ClinicCore failed to build init-config frame.");
+            return frame;
+        }
+
+        private static byte[][] SplitFrames(byte[] frames, int count)
+        {
+            var result = new byte[count][];
+            for (var i = 0; i < count; i++)
+            {
+                result[i] = new byte[16];
+                Array.Copy(frames, i * 16, result[i], 0, 16);
+            }
+            return result;
+        }
+
         private static void EnsureNativeCore()
         {
             if (!NativeCore.IsAvailable) throw new InvalidOperationException("ClinicCore.dll is required for motor command frames.");
@@ -1588,6 +2150,7 @@ namespace ClinicRehabSuite
         public double RestSeconds;
         public double TractionForce;
         public double AgainstPower;
+        public double TractionSeconds;
     }
 
     internal enum TractionCommand
@@ -1608,6 +2171,14 @@ namespace ClinicRehabSuite
         public string DeviceId;
         public int[] ActiveChannels;
         public int SamplingFrequency;
+    }
+
+    internal sealed class SvmTrainingSet
+    {
+        public double[] Labels;
+        public double[] Features;
+        public int SampleCount;
+        public int FeatureCount;
     }
 
     internal enum TrainingMode
@@ -1641,10 +2212,19 @@ namespace ClinicRehabSuite
         private bool stopped;
         private double lastCommandSecond = -1;
         private NativeTrainingPrescription nativePrescription;
+        private double adaptiveEndAngle;
+        private double holdPainSum;
+        private int holdPainCount;
+        private double holdTorqueSum;
+        private int holdTorqueCount;
+        private int stopCount;
+        private int completeCount;
+        private int cyclesSeen;
 
         public TrainingSession(TrainingPrescription prescription)
         {
             this.prescription = prescription;
+            adaptiveEndAngle = prescription.EndAngle;
             nativePrescription = NativeCore.ToNative(prescription);
             startedAt = DateTime.Now;
             EnsureNativeCore();
@@ -1676,18 +2256,53 @@ namespace ClinicRehabSuite
             {
                 throw new InvalidOperationException("ClinicCore failed to step training session.");
             }
+            var phase = PhaseName(nativeStep.Phase);
             return new TrainingStep
             {
                 TargetAngle = nativeStep.TargetAngle,
-                Phase = PhaseName(nativeStep.Phase),
+                Phase = phase,
                 Progress = nativeStep.Progress,
                 ShouldSendMotorCommand = nativeStep.ShouldSendMotorCommand != 0,
                 UseImpedance = nativeStep.UseImpedance != 0,
                 AssistTorque = nativeStep.AssistTorque,
                 Kp = nativeStep.Kp,
                 Kd = nativeStep.Kd,
-                IsComplete = nativeStep.IsComplete != 0
+                IsComplete = nativeStep.IsComplete != 0,
+                PainLabel = phase == "hold" ? 1 : phase == "extension" ? -1 : 0
             };
+        }
+
+        public void Observe(TelemetrySample sample)
+        {
+            if (prescription.Mode != TrainingMode.AdaptivePassive && prescription.Mode != TrainingMode.AdaptiveResistance) return;
+            if (sample.PainLabel == 1)
+            {
+                holdPainSum += sample.SvmScore;
+                holdPainCount++;
+                holdTorqueSum += Math.Abs(sample.Current);
+                holdTorqueCount++;
+            }
+        }
+
+        public void CompleteCycleIfNeeded(TrainingStep step)
+        {
+            if (step == null || (prescription.Mode != TrainingMode.AdaptivePassive && prescription.Mode != TrainingMode.AdaptiveResistance)) return;
+            var cycle = Math.Max(1, (int)Math.Floor((DateTime.Now - startedAt).TotalSeconds / Math.Max(1.0, CycleSeconds)));
+            if (cycle <= cyclesSeen) return;
+            cyclesSeen = cycle;
+            var avgPain = holdPainCount == 0 ? 0 : holdPainSum / holdPainCount;
+            var avgTorque = holdTorqueCount == 0 ? 0 : holdTorqueSum / holdTorqueCount;
+            if (avgPain < 0) stopCount++;
+            else completeCount++;
+            var resistance = Math.Min(1.0, avgTorque / 10.0);
+            var fuzzyDelta = ClinicalWorkflow.FuzzyAngleAdjustment(Math.Max(-1.0, Math.Min(1.0, -avgPain)), resistance);
+            adaptiveEndAngle = Math.Max(0, Math.Min(prescription.EndAngle + 15, adaptiveEndAngle + fuzzyDelta));
+            adaptiveEndAngle = ClinicalWorkflow.NextAdaptiveResistanceAngle(adaptiveEndAngle, prescription.EndAngle + 15, stopCount, completeCount, 5);
+            nativePrescription.EndAngle = adaptiveEndAngle;
+            holdPainSum = 0;
+            holdPainCount = 0;
+            holdTorqueSum = 0;
+            holdTorqueCount = 0;
         }
 
         private static string PhaseName(int phase)
@@ -1716,6 +2331,7 @@ namespace ClinicRehabSuite
         public double Kp;
         public double Kd;
         public bool IsComplete;
+        public int PainLabel;
 
         public static TrainingStep Complete()
         {
@@ -1851,20 +2467,9 @@ namespace ClinicRehabSuite
         public double Score(EmgWindow window, int sampleRate)
         {
             if (window == null || window.Samples.Count == 0) return 0;
-            EnsureNativeCore();
-            var channelCount = window.Samples.Max(x => x.Length);
-            if (channelCount <= 0) return 0;
-            var flat = new List<double>();
-            foreach (var row in window.Samples)
-            {
-                for (var i = 0; i < channelCount; i++) flat.Add(i < row.Length ? row[i] : 0);
-            }
-            var features = new double[32];
             int nativeFeatureCount;
-            if (NativeCore.clinic_emg_extract_features(flat.ToArray(), window.Samples.Count, channelCount, sampleRate, features, features.Length, out nativeFeatureCount) != 1 || nativeFeatureCount <= 0)
-            {
-                return 0;
-            }
+            var features = ExtractFeatures(window, sampleRate, out nativeFeatureCount);
+            if (features == null || nativeFeatureCount <= 0) return 0;
             if (!EnsureModel(nativeFeatureCount)) return 0;
             var modelFeatures = new double[featureCount];
             Array.Copy(features, modelFeatures, Math.Min(featureCount, nativeFeatureCount));
@@ -1874,7 +2479,7 @@ namespace ClinicRehabSuite
             {
                 return 0;
             }
-            return label;
+            return score == 0 ? label : score;
         }
 
         public bool Train(double[] labels, double[] features, int sampleCount, int newFeatureCount, string modelPath)
@@ -1910,6 +2515,27 @@ namespace ClinicRehabSuite
             model = NativeCore.clinic_svm_load(modelPath);
             featureCount = model == IntPtr.Zero ? 0 : detectedFeatureCount;
             return model != IntPtr.Zero;
+        }
+
+        public static double[] ExtractFeatures(EmgWindow window, int sampleRate, out int featureCount)
+        {
+            featureCount = 0;
+            if (window == null || window.Samples.Count == 0) return null;
+            EnsureNativeCore();
+            var channelCount = window.Samples.Max(x => x.Length);
+            if (channelCount <= 0) return null;
+            var flat = new List<double>();
+            foreach (var row in window.Samples)
+            {
+                for (var i = 0; i < channelCount; i++) flat.Add(i < row.Length ? row[i] : 0);
+            }
+            var features = new double[32];
+            if (NativeCore.clinic_emg_extract_features(flat.ToArray(), window.Samples.Count, channelCount, sampleRate, features, features.Length, out featureCount) != 1 || featureCount <= 0)
+            {
+                featureCount = 0;
+                return null;
+            }
+            return features;
         }
 
         private static void EnsureNativeCore()
@@ -2023,7 +2649,7 @@ namespace ClinicRehabSuite
                 if (!NativeCore.IsAvailable) throw new InvalidOperationException("ClinicCore.dll was not loaded.");
                 log.Add("native-core-ok");
 
-                var records = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SelfTestRecords");
+                var records = Path.Combine(Path.GetTempPath(), "ClinicRehabSuiteSelfTest");
                 var recorder = new SessionRecorder(records);
                 var file = recorder.Save(new[]
                 {
@@ -2051,60 +2677,39 @@ namespace ClinicRehabSuite
                 if (MotorFrames.PresetAngle(1, 45.0, 10.0, 5.0, 0)[3] != 0x08) throw new InvalidOperationException("Native motor preset frame failed.");
                 if (MotorFrames.Execute(0)[3] != 0x08) throw new InvalidOperationException("Native motor execute frame failed.");
                 if (MotorFrames.Impedance(1, 1.5, 0.1)[3] != 0x08) throw new InvalidOperationException("Native motor impedance frame failed.");
+                if (MotorFrames.SetAngle(1, 30.0, 5.0, 1.0, 1)[3] != 0x08) throw new InvalidOperationException("Native motor set-angle frame failed.");
+                if (MotorFrames.StepExecute(1, 1, false)[3] != 0x08) throw new InvalidOperationException("Native motor step frame failed.");
+                if (MotorFrames.StepExecute(0, 1, true)[3] != 0x08) throw new InvalidOperationException("Native motor multi-step frame failed.");
+                if (MotorFrames.PresetSpeed(1, 2.0, 0.5, 1)[3] != 0x08) throw new InvalidOperationException("Native motor speed frame failed.");
+                if (MotorFrames.PresetTorque(1, 1.0, 0.2, 1)[3] != 0x08) throw new InvalidOperationException("Native motor torque frame failed.");
+                if (MotorFrames.MotionAid(1, 10.0, 1.0, 1.0, 0.5)[3] != 0x08) throw new InvalidOperationException("Native motor motion-aid frame failed.");
+                if (MotorFrames.ReadProperty(1, 32002, 3)[3] != 0x08) throw new InvalidOperationException("Native motor read-property frame failed.");
                 log.Add("native-motor-frames-ok");
 
-                using (var controller = new DeviceController())
-                {
-                    controller.ConnectWithMode("COM_DOES_NOT_EXIST", "COM_DOES_NOT_EXIST", "127.0.0.1", 1, true);
-                    if (!controller.IsSimulation) throw new InvalidOperationException("Device simulation mode did not activate.");
-                    controller.StartTraining(new TrainingPrescription
-                    {
-                        Mode = TrainingMode.Passive,
-                        StartAngle = 30,
-                        EndAngle = 60,
-                        Repetitions = 1,
-                        TravelSeconds = 2,
-                        KeepSeconds = 1,
-                        RestSeconds = 1,
-                        AgainstPower = 1.5
-                    });
-                    controller.StartTraining(new TrainingPrescription
-                    {
-                        Mode = TrainingMode.StaticTraction,
-                        StartAngle = 30,
-                        EndAngle = 60,
-                        Repetitions = 1,
-                        TravelSeconds = 2,
-                        KeepSeconds = 1,
-                        RestSeconds = 1,
-                        TractionForce = 10
-                    });
-                    controller.StartTraining(new TrainingPrescription
-                    {
-                        Mode = TrainingMode.AdaptiveInflation,
-                        StartAngle = 30,
-                        EndAngle = 60,
-                        Repetitions = 1,
-                        TravelSeconds = 2,
-                        KeepSeconds = 1,
-                        RestSeconds = 1
-                    });
-                    controller.EmergencyStop();
-                }
                 using (var controller = new DeviceController())
                 {
                     var failed = false;
                     try
                     {
-                        controller.ConnectWithMode("COM_DOES_NOT_EXIST", "COM_DOES_NOT_EXIST", "127.0.0.1", 1, false);
+                        controller.Connect("COM_DOES_NOT_EXIST", "COM_DOES_NOT_EXIST", "127.0.0.1", 1);
                     }
                     catch (InvalidOperationException ex)
                     {
                         failed = ex.Message.Contains("Real hardware connection failed");
                     }
-                    if (!failed || controller.IsSimulation) throw new InvalidOperationException("Real hardware mode did not fail explicitly.");
+                    if (!failed) throw new InvalidOperationException("Hardware connection failure was not explicit.");
                 }
-                log.Add("device-simulation-ok");
+                log.Add("hardware-failure-explicit-ok");
+
+                if (MotorFrames.AdaptiveAngle(1, 45.0, 2.0, 1.0)[3] != 0x08) throw new InvalidOperationException("Native motor adaptive angle frame failed.");
+                if (MotorFrames.AdaptiveMultiExecute()[3] != 0x08) throw new InvalidOperationException("Native motor adaptive execute frame failed.");
+                if (MotorFrames.SetSpeed(1, 2.0, 0.2, 1)[3] != 0x08) throw new InvalidOperationException("Native motor direct speed frame failed.");
+                if (MotorFrames.SetTorque(1, 1.0, 0.2, 1)[3] != 0x08) throw new InvalidOperationException("Native motor direct torque frame failed.");
+                if (MotorFrames.PidProperties(1, 1.0, 1.0, 0.1).Length != 3) throw new InvalidOperationException("Native motor PID frames failed.");
+                if (MotorFrames.AngleRange(1, 5.0, 90.0, false, true).Length != 3) throw new InvalidOperationException("Native motor angle range frames failed.");
+                if (MotorFrames.ConfigOrder(1, 0x05)[3] != 0x08) throw new InvalidOperationException("Native motor config order frame failed.");
+                if (MotorFrames.InitConfig(1)[3] != 0x08) throw new InvalidOperationException("Native motor init-config frame failed.");
+                log.Add("native-motor-advanced-frames-ok");
 
                 var prescription = new TrainingPrescription { Mode = TrainingMode.Passive, StartAngle = 30, EndAngle = 60, Repetitions = 1, TravelSeconds = 2, KeepSeconds = 1, RestSeconds = 1 };
                 var session = new TrainingSession(prescription);
@@ -2192,7 +2797,7 @@ namespace ClinicRehabSuite
                 if (!detector.Train(labels, features, 4, 2, detectorModelPath)) throw new InvalidOperationException("SvmPainDetector native training failed.");
                 var detectorScore = detector.Score(parsed, 2000);
                 detector.Dispose();
-                if (detectorScore != -1.0 && detectorScore != 1.0) throw new InvalidOperationException("SvmPainDetector native prediction failed.");
+                if (double.IsNaN(detectorScore) || double.IsInfinity(detectorScore) || Math.Abs(detectorScore) < 1.0e-12) throw new InvalidOperationException("SvmPainDetector native prediction failed.");
                 log.Add("native-detector-ok");
 
                 WriteSelfTestLog("PASS", log);
@@ -2208,7 +2813,7 @@ namespace ClinicRehabSuite
 
         private static void WriteSelfTestLog(string status, IEnumerable<string> lines)
         {
-            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest.log");
+            var path = Path.Combine(Path.GetTempPath(), "ClinicRehabSuite-selftest.log");
             var content = status + Environment.NewLine + string.Join(Environment.NewLine, lines.ToArray());
             File.WriteAllText(path, content, Encoding.UTF8);
         }
@@ -2241,17 +2846,7 @@ namespace ClinicRehabSuite
         public double Emg;
         public double Pressure;
         public double SvmScore;
-    }
-
-    internal struct NavItem
-    {
-        public readonly string Key;
-        public readonly string Text;
-        public NavItem(string key, string text)
-        {
-            Key = key;
-            Text = text;
-        }
+        public int PainLabel;
     }
 
     internal static class EnumerableCompat

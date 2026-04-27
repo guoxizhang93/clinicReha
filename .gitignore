@@ -1,0 +1,12 @@
+analysis/
+ClinicCore/bin/
+ClinicRehabSuite/bin/SelfTestRecords/
+ClinicRehabSuite/bin/selftest.log
+*.obj
+*.exp
+*.lib
+*.pdb
+*.ilk
+*.user
+*.suo
+*.tmp

@@ -57,6 +57,20 @@ CLINIC_API int clinic_motor_preset_angle_frame(int id, double angle, double spee
 CLINIC_API int clinic_motor_execute_frame(int mode, unsigned char* out_frame16);
 CLINIC_API int clinic_motor_simple_order_frame(unsigned int order, unsigned char* out_frame16);
 CLINIC_API int clinic_motor_impedance_frame(int id, double kp, double kd, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_set_angle_frame(int id, double angle, double speed_or_time, double param, int mode, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_step_execute_frame(int id, int mode, int multi_axis, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_preset_speed_frame(int id, double speed, double param, int mode, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_preset_torque_frame(int id, double torque, double param, int mode, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_motion_aid_frame(int id, double angle, double angle_error, double speed_error, double torque, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_read_property_frame(int id, int address, int data_type, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_adaptive_angle_frame(int id, double angle, double speed, double torque, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_adaptive_multi_execute_frame(unsigned char* out_frame16);
+CLINIC_API int clinic_motor_set_speed_frame(int id, double speed, double param, int mode, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_set_torque_frame(int id, double torque, double param, int mode, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_pid_property_frames(int id, double p, double i, double d, unsigned char* out_frame16_array48);
+CLINIC_API int clinic_motor_angle_range_frames(int id, double angle_min, double angle_max, int persistent, int enable, unsigned char* out_frame16_array48);
+CLINIC_API int clinic_motor_config_order_frame(int id, unsigned int order, unsigned char* out_frame16);
+CLINIC_API int clinic_motor_init_config_frame(int id, unsigned char* out_frame16);
 
 CLINIC_API double clinic_kinematics_linkage_to_motor(double linkage_angle);
 CLINIC_API double clinic_kinematics_motor_to_linkage(double motor_angle);

@@ -2,9 +2,10 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $outDir = Join-Path $root "bin"
 $dll = Join-Path $outDir "ClinicCore.dll"
-$lib = Join-Path $outDir "ClinicCore.lib"
-$obj = Join-Path $outDir "clinic_core.obj"
-$svmObj = Join-Path $outDir "svm.obj"
+$buildDir = Join-Path ([System.IO.Path]::GetTempPath()) "ClinicCoreBuild"
+$lib = Join-Path $buildDir "ClinicCore.lib"
+$obj = Join-Path $buildDir "clinic_core.obj"
+$svmObj = Join-Path $buildDir "svm.obj"
 $svmCpp = Join-Path (Split-Path -Parent $root) "libsvm-3.32\libsvm-3.32\svm.cpp"
 $cl = "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\cl.exe"
 $sdkLibBase = "C:\Program Files (x86)\Windows Kits\10\Lib"
@@ -38,6 +39,10 @@ if (-not $ucrt -or -not $um -or -not (Test-Path $vcLib) -or -not (Test-Path $vcI
 }
 
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+if (Test-Path $buildDir) {
+    Remove-Item -LiteralPath $buildDir -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
 
 if (-not (Test-Path $svmCpp)) {
     throw "libsvm source not found: $svmCpp"

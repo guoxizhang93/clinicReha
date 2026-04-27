@@ -25,7 +25,7 @@
    - Arduino 推杆/气囊串口
    - Opensignal TCP
    - 连接、断开、自检
-   - 连接失败自动进入模拟模式
+   - 连接失败明确报错，不再自动进入模拟模式
 4. 训练处方
    - 训练模式
    - 起止角度
@@ -54,7 +54,7 @@
 - `DeviceController`：硬件连接、训练命令、急停、推杆命令
 - `CanProtocol`：大然电机 CAN -> UART 16 字节包封装
 - `SessionRecorder`：CSV 记录导出
-- `SelfTestRunner`：命令行自测
+- `SelfTestRunner`：命令行自测，覆盖无硬件时显式失败路径
 - `WavePanel`：实时曲线控件
 
 当前已迁移的协议能力：
@@ -67,6 +67,7 @@
 - 急停命令
 - Arduino 单字符控制命令
 - Opensignal TCP 连接检测
+- DrEmpower 自适应力位、直接速度/扭矩、PID、角度范围和配置命令帧
 
 ## 4. 商业化建议架构
 
@@ -151,6 +152,5 @@ D:\zgx\ClinicRehabSuite\bin\ClinicRehabSuite.exe
 
 ```powershell
 D:\zgx\ClinicRehabSuite\bin\ClinicRehabSuite.exe --self-test
-type D:\zgx\ClinicRehabSuite\bin\selftest.log
+type "$env:TEMP\ClinicRehabSuite-selftest.log"
 ```
-

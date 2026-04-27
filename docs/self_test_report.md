@@ -1,6 +1,6 @@
 # 自测报告
 
-日期：2026-04-26
+日期：2026-04-27
 
 ## 环境
 
@@ -28,6 +28,7 @@ cd D:\zgx
 - `D:\zgx\ClinicCore\bin\ClinicCore.dll`
 - `D:\zgx\ClinicRehabSuite\bin\ClinicCore.dll`
 - `D:\zgx\ClinicRehabSuite\bin\ClinicRehabSuite.exe`
+- 自测临时 CSV 和 SVM 模型写入 `%TEMP%\ClinicRehabSuiteSelfTest`
 
 ## 命令行自测
 
@@ -36,7 +37,7 @@ cd D:\zgx
 ```powershell
 cd D:\zgx
 .\ClinicRehabSuite\bin\ClinicRehabSuite.exe --self-test
-type .\ClinicRehabSuite\bin\selftest.log
+type "$env:TEMP\ClinicRehabSuite-selftest.log"
 ```
 
 结果：
@@ -47,7 +48,8 @@ native-core-ok
 record-ok
 can-frame-ok
 native-motor-frames-ok
-device-simulation-ok
+hardware-failure-explicit-ok
+native-motor-advanced-frames-ok
 training-state-machine-ok
 native-clinical-workflow-ok
 opensignal-svm-ok
@@ -64,8 +66,8 @@ native-detector-ok
 - CSV 记录写入
 - CAN UART 16 字节帧生成
 - 电机属性写入、角度预置、执行、阻抗控制命令帧原生生成
-- 无硬件端口时进入设备仿真模式
-- 仿真模式下启动训练、静态牵引、自适应充气和急停流程不崩溃
+- 无硬件端口时明确报错，不再进入设备仿真模式
+- 扩展 DrEmpower 电机命令帧，包括自适应力位、直接速度/扭矩、PID、角度范围和配置命令
 - 训练状态机和分段轨迹插值
 - 标定最大角计算
 - 模糊角度调节

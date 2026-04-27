@@ -1,18 +1,18 @@
-# clinic_test0401.mlapp 功能与重构分析
+# clinic_test0401 功能与重构分析
 
-分析日期：2026-04-26  
-对象：`clinic_test0401.mlapp`、`DrEmpower_can.m`、`sketch_01/sketch_01.ino`、`libsvm-3.32`
+分析日期：2026-04-27
+对象：`clinic_test0401.txt`、`DrEmpower_can.txt`、`sketch_01/sketch_01.ino`、`libsvm-3.32`
 
 ## 1. 软件总体定位
 
 该软件是 MATLAB App Designer 编写的下肢康复训练控制系统，主要面向膝关节/下肢康复设备。现有架构由 4 部分组成：
 
-1. MATLAB App Designer UI：`clinic_test0401.mlapp`
-2. 大然电机 CAN/串口控制类：`DrEmpower_can.m`
+1. MATLAB App Designer UI 源码文本：`clinic_test0401.txt`
+2. 大然电机 CAN/串口控制类源码文本：`DrEmpower_can.txt`
 3. Opensignal 肌电采集 TCP 客户端与 SVM 疼痛识别
 4. Arduino 推杆/气囊控制固件：`sketch_01/sketch_01.ino`
 
-`clinic_test0401.mlapp` 的元数据表明：创建于 2023-12-01，最近修改于 2025-07-20，App Designer 最低支持 R2018a，保存环境为 MATLAB R2023b Update 1。
+原始 `clinic_test0401.mlapp` 的元数据表明：创建于 2023-12-01，最近修改于 2025-07-20，App Designer 最低支持 R2018a，保存环境为 MATLAB R2023b Update 1。当前仓库已整理为以同名 `.txt` 作为可审查源码依据。
 
 ## 2. 详细功能清单
 
@@ -173,7 +173,7 @@ Arduino 命令映射：
 
 没有设备、端口号不同、端口被占用时 App 会直接崩溃，无法进入 UI。
 
-处理：`clinic_test0401_refactored.m` 中已移动到 `initMotorDevice`，只在点击“启动设备”时连接，并用 `try/catch` 显示错误。
+处理：原生 C# 版本中已移动到 `DeviceController.Connect`，只在点击“启动设备”时连接，并用明确错误提示恢复 UI 状态。
 
 ### 3.2 多处无限阻塞
 
@@ -187,7 +187,7 @@ Arduino 命令映射：
 
 这些循环在硬件掉线、包格式异常、Opensignal 未返回数据时会永久卡死。
 
-处理：`DrEmpower_can.m` 已加入超时、连接检查、`LastError`，并重构状态帧读取逻辑。
+处理：`DrEmpower_can.txt` 对应逻辑已在原生 C/C# 版本中替代，包含超时、连接检查和状态帧读取保护。
 
 ### 3.3 状态帧读取逻辑错误
 
@@ -227,7 +227,7 @@ while byte_list_head ~= 170
 
 ## 4. 已完成重构
 
-### 4.1 `DrEmpower_can.m`
+### 4.1 `DrEmpower_can.txt` 对应原生替代
 
 已完成：
 
@@ -245,16 +245,11 @@ while byte_list_head ~= 170
 - `position_done/positions_done` 加最大等待时间
 - `angle_speed_torque_state(s)` 处理空结果
 
-### 4.2 `clinic_test0401_refactored.m`
+### 4.2 原生 C/C# 替代
 
 已完成：
 
-- 从 `.mlapp` 提取出 MATLAB 源码副本
-- 新增 `initMotorDevice`
-- 新增 `cleanupDevices`
-- `startupFcn` 不再连接硬件
-- “启动设备”按钮中连接 CAN，并在失败时恢复 UI
-- 关闭窗口/关闭设备时统一清理回调和 Opensignal stop
-
-说明：没有直接改写 `clinic_test0401.mlapp` 原包，因为 `.mlapp` 同时包含 App Designer 二进制界面模型 `appModel.mat`。在没有 MATLAB App Designer 的环境下直接回写有破坏工程的风险。
-
+- `ClinicRehabSuite.exe` 不再打开即连接硬件，所有真实设备连接由“启动设备”触发。
+- `DeviceController` 统一管理 CAN、Arduino 和 OpenSignal 连接，失败时明确报错。
+- `ClinicCore.dll` 承担电机协议帧、训练状态机、运动学、SVM、模糊控制等核心逻辑。
+- MATLAB 源包和中间分析目录已从仓库中移除，保留 `clinic_test0401.txt` 与 `DrEmpower_can.txt` 作为源码对照依据。
